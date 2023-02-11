@@ -82,7 +82,7 @@ function OR.onReferenceActivated(e)
     -- Iterates through object replacers for each reference
     for _, obj in pairs(OR.mergedObjects) do
         -- Checks for matching object and that this object has not already had an attempt to replace
-        if (ref.baseObject.id == obj.oldObject and not ref.data.GPDOR.attemptedReplace) then
+        if (ref.baseObject.id == obj.oldObject and (not ref.data.GPDOR or not ref.data.GPDOR.attemptedReplace)) then
             -- Saves attempted flag to save file to ensure the ref will be exempt from future attempts
             ref.data.GPDOR = {}
             ref.data.GPDOR.attemptedReplace = true
