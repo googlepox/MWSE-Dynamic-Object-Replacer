@@ -77,30 +77,41 @@ end
 -- New function to avoid scanning on cell change
 function OR.onReferenceActivated(e)
     local ref = e.reference
+    local attemptedReplace = false
+    local actuallyReplaced = false
     -- Does not swap sourceless refs
     if not ref.sourceMod then return end
     -- Iterates through object replacers for each reference
     for _, obj in pairs(OR.mergedObjects) do
         -- Checks for matching object and that this object has not already had an attempt to replace
-        if (ref.baseObject.id == obj.oldObject and (not ref.data.GPDOR or not ref.data.GPDOR.attemptedReplace)) then
+        if (ref.baseObject.id == obj.oldObject and (not ref.data or not ref.data.GPDOR or not ref.data.GPDOR.attemptedReplace) and attemptedReplace == false) then
             -- Saves attempted flag to save file to ensure the ref will be exempt from future attempts
-            ref.data.GPDOR = {}
-            ref.data.GPDOR.attemptedReplace = true
+            if ref.supportsLuaData then
+                ref.data.GPDOR = {}
+                ref.data.GPDOR.attemptedReplace = true
+            end
+            attemptedReplace = true
             -- Iterates through possible new objects
             for _, newObj in pairs(obj.newObjects) do
                 -- Checks for matching cell and that the object has not *actually* been replaced
-                if (((newObj.specificCell and newObj.specificCell == ref.cell.id) or not newObj.specificCell) and not ref.data.GPDOR.actuallyReplaced) then
+                if (((newObj.specificCell and newObj.specificCell == ref.cell.id) or not newObj.specificCell) and (not ref.data or not ref.data.GPDOR or not ref.data.GPDOR.actuallyReplaced) and actuallyReplaced == false) then
                     -- If guaranteed replace chance, then replace
                     if (newObj.replaceChance == 1) then
                         -- Saves replaced flag to save file
-                        ref.data.GPDOR.actuallyReplaced = true
+                        if ref.supportsLuaData then
+                            ref.data.GPDOR.actuallyReplaced = true 
+                        end
+                        actuallyReplaced = true
                         OR.swapObjects(ref, ref.cell, newObj)
                     -- Otherwise calculate replace with random float
                     else
                         local randChance = math.random()
                         if (randChance < newObj.replaceChance) then
                             -- Saves replaced flag to save file
-                            ref.data.GPDOR.actuallyReplaced = true
+                            if ref.supportsLuaData then
+                                ref.data.GPDOR.actuallyReplaced = true 
+                            end
+                            actuallyReplaced = true
                             OR.swapObjects(ref, ref.cell, newObj)
                         end
                     end
