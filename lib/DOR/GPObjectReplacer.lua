@@ -58,8 +58,12 @@ function OR.swapObjects(ref, cell, newObj)
         position = ref.position,
         orientation = ref.orientation,
         cell = cell,
-        scale = ref.scale
+        scale = ref.scale,
+        itemData = ref.itemData
     })
+    if ref.isDead == true then
+        newRef.isDead = true
+    end
     mwse.log("[Object Replacer] Swapping %s with %s", ref.baseObject.id, newRef.object.id)
     -- Disables the old ref and enables the new replacement ref
     newRef:enable()
@@ -73,27 +77,30 @@ end
 -- New function to avoid scanning on cell change
 function OR.onReferenceActivated(e)
     local ref = e.reference
-    local attemptedReplace = false
-    local actuallyReplaced = false
+    -- Does not swap sourceless refs
     if not ref.sourceMod then return end
     -- Iterates through object replacers for each reference
     for _, obj in pairs(OR.mergedObjects) do
         -- Checks for matching object and that this object has not already had an attempt to replace
-        if (ref.baseObject.id == obj.oldObject and not attemptedReplace) then
-            attemptedReplace = true
+        if (ref.baseObject.id == obj.oldObject and not ref.data.GPDOR.attemptedReplace) then
+            -- Saves attempted flag to save file to ensure the ref will be exempt from future attempts
+            ref.data.GPDOR = {}
+            ref.data.GPDOR.attemptedReplace = true
             -- Iterates through possible new objects
             for _, newObj in pairs(obj.newObjects) do
                 -- Checks for matching cell and that the object has not *actually* been replaced
-                if (((newObj.specificCell and newObj.specificCell == ref.cell.id) or not newObj.specificCell) and not actuallyReplaced) then
+                if (((newObj.specificCell and newObj.specificCell == ref.cell.id) or not newObj.specificCell) and not ref.data.GPDOR.actuallyReplaced) then
                     -- If guaranteed replace chance, then replace
                     if (newObj.replaceChance == 1) then
-                        actuallyReplaced = true
+                        -- Saves replaced flag to save file
+                        ref.data.GPDOR.actuallyReplaced = true
                         OR.swapObjects(ref, ref.cell, newObj)
                     -- Otherwise calculate replace with random float
                     else
                         local randChance = math.random()
                         if (randChance < newObj.replaceChance) then
-                            actuallyReplaced = true
+                            -- Saves replaced flag to save file
+                            ref.data.GPDOR.actuallyReplaced = true
                             OR.swapObjects(ref, ref.cell, newObj)
                         end
                     end
