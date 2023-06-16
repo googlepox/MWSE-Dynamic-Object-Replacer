@@ -32,9 +32,11 @@ function OR.loadReplacer(objectsToReplace)
             local newObject = possibleNewObject.newObject
             local replaceChance = possibleNewObject.replaceChance
             local specificCell = possibleNewObject.specificCell
+            local excludedCell = possibleNewObject.excludedCell
             replacerObjects.newObject = newObject
             replacerObjects.replaceChance = replaceChance
             replacerObjects.specificCell = specificCell
+            replacerObjects.excludedCell = excludedCell
             -- Inserts new object into new object table
             table.insert(modObject.newObjects, replacerObjects)
         end
@@ -74,11 +76,24 @@ function OR.swapObjects(ref, cell, newObj)
     cell.modified = cell_modified
 end
 
+-- Checks if current cell is in cellList
+function OR.checkForCell(cellList, refCell)
+    for _, cell in pairs(cellList) do
+        local cellString1 = string.trim(string.upper(cell.cellName))
+        local cellString2 = string.trim(string.upper(refCell))
+        if ((cell.cellName and (string.find(cellString2, cellString1) or cellString2 == cellString1)) or not cell) then
+            return true
+        end
+    end
+end
+
 -- New function to avoid scanning on cell change
 function OR.onReferenceActivated(e)
     local ref = e.reference
     local attemptedReplace = false
     local actuallyReplaced = false
+    local specificCell
+    local excludedCell
     -- Does not swap sourceless refs
     if not ref.sourceMod then return end
     -- Iterates through object replacers for each reference
@@ -93,8 +108,17 @@ function OR.onReferenceActivated(e)
             attemptedReplace = true
             -- Iterates through possible new objects
             for _, newObj in pairs(obj.newObjects) do
+                -- checks for matching cells
+                if newObj.specificCell then
+                    specificCell = OR.checkForCell(newObj.specificCell, ref.cell.id)
+                end
+                -- ends early if current cell is excluded
+                if newObj.excludedCell then
+                    excludedCell = OR.checkForCell(newObj.excludedCell, ref.cell.id)
+                end
+                if excludedCell then return end
                 -- Checks for matching cell and that the object has not *actually* been replaced
-                if (((newObj.specificCell and newObj.specificCell == ref.cell.id) or not newObj.specificCell) and (not ref.data or not ref.data.GPDOR or not ref.data.GPDOR.actuallyReplaced) and actuallyReplaced == false) then
+                if ((specificCell or not newObj.specificCell) and (not ref.data or not ref.data.GPDOR or not ref.data.GPDOR.actuallyReplaced) and actuallyReplaced == false) then
                     -- If guaranteed replace chance, then replace
                     if (newObj.replaceChance == 1) then
                         -- Saves replaced flag to save file
@@ -160,6 +184,10 @@ function OR.compareNewObjects(newObject1, newObject2)
         return true
     elseif (not newObject1.specificCell and newObject2.specificCell) then
         return false
+    elseif (newObject1.excludedCell and not newObject2.excludedCell) then
+        return true
+    elseif (not newObject1.excludedCell and newObject2.excludedCell) then
+        return false
     elseif (newObject1.replaceChance and not newObject2.replaceChance) then
         return false
     elseif (not newObject1.replaceChance and newObject2.replaceChance) then
@@ -182,7 +210,12 @@ function OR.printObjects()
         for _, newObj in pairs(obj.newObjects) do
             mwse.log("        newObject: %s", newObj.newObject)
             mwse.log("        replaceChance: %s", newObj.replaceChance)
-            mwse.log("        specificCell: %s", newObj.specificCell)
+            for _, cell in pairs(newObj.specificCell) do
+                mwse.log("        specificCell: %s", cell.cellName)
+            end
+            for _, cell in pairs(newObj.excludedCell) do
+                mwse.log("        excludedCell: %s", cell.cellName)
+            end
             mwse.log("\n")
         end
     end
